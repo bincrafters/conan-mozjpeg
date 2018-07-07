@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from conans import ConanFile, CMake, tools
+from conans import ConanFile, CMake, tools, AutoToolsBuildEnvironment
 import os
 
 
@@ -98,13 +98,44 @@ class MozJpegConan(ConanFile):
         return cmake
 
     def build(self):
+        if self.settings.os == 'Windows':
+            self.build_cmake()
+        else:
+            self.build_configure()
+
+    def build_configure(self):
+        with tools.chdir(self.source_subfolder):
+            self.run('autoreconf -fiv')
+            env_build = AutoToolsBuildEnvironment(self)
+            env_build.fpic = self.options.fPIC
+            args = ['--prefix=%s' % os.path.abspath(self.package_folder)]
+            if self.options.shared:
+                args.extend(['--disable-static', '--enable-shared'])
+            else:
+                args.extend(['--disable-shared', '--enable-static'])
+            args.append('--with-pic' if self.options.fPIC else '--without-pic')
+            args.append('--with-simd' if self.options.SIMD else '--without-simd')
+            args.append('--with-arith-enc' if self.options.arithmetic_encoder else '--without-arith-enc')
+            args.append('--with-arith-dec' if self.options.arithmetic_decoder else '--without-arith-dec')
+            args.append('--with-jpeg7' if self.options.libjpeg7_compatibility else '--without-jpeg7')
+            args.append('--with-jpeg8' if self.options.libjpeg8_compatibility else '--without-jpeg8')
+            args.append('--with-mem-srcdst' if self.options.mem_src_dst else '--without-mem-srcdst')
+            args.append('--with-turbojpeg' if self.options.turbojpeg else '--without-turbojpeg')
+            args.append('--with-java' if self.options.java else '--without-java')
+            args.append('--with-12bit' if self.options.enable12bit else '--without-12bit')
+            env_build.configure(args=args)
+            env_build.make()
+            env_build.make(args=['install'])
+
+    def build_cmake(self):
         cmake = self.configure_cmake()
         cmake.build()
 
     def package(self):
         self.copy(pattern="LICENSE", dst="licenses", src=self.source_subfolder)
-        cmake = self.configure_cmake()
-        cmake.install()
+        if self.settings.os == 'Windows':
+            cmake = self.configure_cmake()
+            cmake.install()
 
     def package_info(self):
         self.cpp_info.libs = tools.collect_libs(self)
