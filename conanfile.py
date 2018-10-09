@@ -8,45 +8,44 @@ import os
 class MozJpegConan(ConanFile):
     name = "mozjpeg"
     version = "3.3.1"
-    description = "MozJPEG reduces file sizes of JPEG images while retaining quality and compatibility with the " \
-                  "ast majority of the world's deployed decoders"
+    description = (
+        "MozJPEG reduces file sizes of JPEG images while retaining quality and "
+        "compatibility with the vast majority of the world's deployed decoders."
+    )
     url = "https://github.com/bincrafters/conan-mozjpeg"
     homepage = "https://github.com/mozilla/mozjpeg"
     author = "Bincrafters <bincrafters@gmail.com>"
-    # Indicates License type of the packaged library
-    license = "BSD"
-
-    # Packages the license for the conanfile.py
+    license = "BSD, BSD 3-Clause, BSD, ZLIB, IJG"
     exports = ["LICENSE.md"]
-
-    # Remove following lines if the target lib does not use cmake.
     exports_sources = ["CMakeLists.txt"]
     generators = "cmake"
-
-    # Options may need to change depending on the packaged library.
     settings = "os", "arch", "compiler", "build_type"
-    options = {"shared": [True, False],
-               "fPIC": [True, False],
-               "SIMD": [True, False],
-               "arithmetic_encoder": [True, False],
-               "arithmetic_decoder": [True, False],
-               "libjpeg7_compatibility": [True, False],
-               "libjpeg8_compatibility": [True, False],
-               "mem_src_dst": [True, False],
-               "turbojpeg": [True, False],
-               "java": [True, False],
-               "enable12bit": [True, False]}
-    default_options = "shared=False",\
-                      "fPIC=True",\
-                      "SIMD=True",\
-                      "arithmetic_encoder=True",\
-                      "arithmetic_decoder=True",\
-                      "libjpeg7_compatibility=False",\
-                      "libjpeg8_compatibility=False",\
-                      "mem_src_dst=True",\
-                      "turbojpeg=True",\
-                      "java=False",\
-                      "enable12bit=False"
+    options = {
+        "shared": [True, False],
+        "fPIC": [True, False],
+        "SIMD": [True, False],
+        "arithmetic_encoder": [True, False],
+        "arithmetic_decoder": [True, False],
+        "libjpeg7_compatibility": [True, False],
+        "libjpeg8_compatibility": [True, False],
+        "mem_src_dst": [True, False],
+        "turbojpeg": [True, False],
+        "java": [True, False],
+        "enable12bit": [True, False],
+    }
+    default_options = (
+        "shared=False",
+        "fPIC=True",
+        "SIMD=True",
+        "arithmetic_encoder=True",
+        "arithmetic_decoder=True",
+        "libjpeg7_compatibility=False",
+        "libjpeg8_compatibility=False",
+        "mem_src_dst=True",
+        "turbojpeg=True",
+        "java=False",
+        "enable12bit=False",
+    )
 
     source_subfolder = "source_subfolder"
     build_subfolder = "build_subfolder"
@@ -63,7 +62,7 @@ class MozJpegConan(ConanFile):
         tools.get("{0}/archive/v{1}.tar.gz".format(source_url, self.version))
         extracted_dir = self.name + "-" + self.version
         os.rename(extracted_dir, self.source_subfolder)
-        # FIXME : write PR, then remove after 3.3.2 release
+        # remove after 3.3.2 release
         tools.replace_in_file(os.path.join(self.source_subfolder, 'CMakeLists.txt'),
                               '${CMAKE_SOURCE_DIR}', '${CMAKE_CURRENT_SOURCE_DIR}')
         tools.replace_in_file(os.path.join(self.source_subfolder, 'CMakeLists.txt'),
@@ -101,9 +100,9 @@ class MozJpegConan(ConanFile):
         if self.settings.os == 'Windows':
             self.build_cmake()
         else:
-            self.build_configure()
+            self.build_autotools()
 
-    def build_configure(self):
+    def build_autotools(self):
         with tools.chdir(self.source_subfolder):
             self.run('autoreconf -fiv')
             env_build = AutoToolsBuildEnvironment(self)
