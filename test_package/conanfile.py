@@ -14,7 +14,6 @@ class TestPackageConan(ConanFile):
         cmake.configure()
         cmake.build()
 
-
     def test(self):
         bin_path = os.path.join("bin", "test_package")
         img_name = os.path.join(self.source_folder, "testimg.jpg")

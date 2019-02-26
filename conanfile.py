@@ -1,23 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-from conans import ConanFile, CMake, tools, AutoToolsBuildEnvironment
 import os
+from conans import ConanFile, CMake, tools, AutoToolsBuildEnvironment
 
 
 class MozJpegConan(ConanFile):
     name = "mozjpeg"
     version = "3.3.1"
-    description = (
-        "MozJPEG reduces file sizes of JPEG images while retaining quality and "
-        "compatibility with the vast majority of the world's deployed decoders."
-    )
+    description = "MozJPEG is an improved JPEG encoder"
     url = "https://github.com/bincrafters/conan-mozjpeg"
     homepage = "https://github.com/mozilla/mozjpeg"
     author = "Bincrafters <bincrafters@gmail.com>"
-    license = "BSD, BSD 3-Clause, BSD, ZLIB, IJG"
-    exports = ["LICENSE.md"]
-    exports_sources = ["CMakeLists.txt"]
+    topics = ("conan", "mozjpeg", "jpeg", "jpeg-encoder", "compressor")
+    license = ("BSD", "BSD-3-Clause", "ZLIB")
+    exports = "LICENSE.md"
+    exports_sources = ("CMakeLists.txt", "mozjpeg.patch")
     generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
     options = {
@@ -33,22 +30,22 @@ class MozJpegConan(ConanFile):
         "java": [True, False],
         "enable12bit": [True, False],
     }
-    default_options = (
-        "shared=False",
-        "fPIC=True",
-        "SIMD=True",
-        "arithmetic_encoder=True",
-        "arithmetic_decoder=True",
-        "libjpeg7_compatibility=False",
-        "libjpeg8_compatibility=False",
-        "mem_src_dst=True",
-        "turbojpeg=True",
-        "java=False",
-        "enable12bit=False",
-    )
-
-    source_subfolder = "source_subfolder"
-    build_subfolder = "build_subfolder"
+    default_options = {
+        'shared': False,
+        'fPIC': True,
+        'SIMD': True,
+        'arithmetic_encoder': True,
+        'arithmetic_decoder': True,
+        'libjpeg7_compatibility': False,
+        'libjpeg8_compatibility': False,
+        'mem_src_dst': True,
+        'turbojpeg': True,
+        'java': False,
+        'enable12bit': False
+    }
+    _source_subfolder = "source_subfolder"
+    _build_subfolder = "build_subfolder"
+    _autotools = None
 
     def configure(self):
         del self.settings.compiler.libcxx
@@ -57,25 +54,17 @@ class MozJpegConan(ConanFile):
         if self.settings.os == 'Windows':
             del self.options.fPIC
 
-    def source(self):
-        source_url = "https://github.com/mozilla/mozjpeg"
-        tools.get("{0}/archive/v{1}.tar.gz".format(source_url, self.version))
-        extracted_dir = self.name + "-" + self.version
-        os.rename(extracted_dir, self.source_subfolder)
-        # remove after 3.3.2 release
-        tools.replace_in_file(os.path.join(self.source_subfolder, 'CMakeLists.txt'),
-                              '${CMAKE_SOURCE_DIR}', '${CMAKE_CURRENT_SOURCE_DIR}')
-        tools.replace_in_file(os.path.join(self.source_subfolder, 'CMakeLists.txt'),
-                              'install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}',
-                              'install(PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}')
-        tools.replace_in_file(os.path.join(self.source_subfolder, 'CMakeLists.txt'),
-                              '${CMAKE_BINARY_DIR}', '${CMAKE_CURRENT_BINARY_DIR}')
-        tools.replace_in_file(os.path.join(self.source_subfolder, 'sharedlib', 'CMakeLists.txt'),
-                              '${CMAKE_SOURCE_DIR}', '${CMAKE_CURRENT_SOURCE_DIR}/..')
-        tools.replace_in_file(os.path.join(self.source_subfolder, 'simd', 'CMakeLists.txt'),
-                              '${CMAKE_SOURCE_DIR}', '${CMAKE_CURRENT_SOURCE_DIR}/..')
+    def build_requirements(self):
+        if not tools.which("nasm"):
+            self.build_requires("nasm_installer/2.13.02@bincrafters/stable")
 
-    def configure_cmake(self):
+    def source(self):
+        sha256 = "aebbea60ea038a84a2d1ed3de38fdbca34027e2e54ee2b7d08a97578be72599d"
+        tools.get("{0}/archive/v{1}.tar.gz".format(self.homepage, self.version), sha256=sha256)
+        extracted_dir = self.name + "-" + self.version
+        os.rename(extracted_dir, self._source_subfolder)
+
+    def _configure_cmake(self):
         cmake = CMake(self)
         cmake.definitions['ENABLE_TESTING'] = False
         cmake.definitions['ENABLE_STATIC'] = not self.options.shared
@@ -91,23 +80,14 @@ class MozJpegConan(ConanFile):
         cmake.definitions['WITH_12BIT'] = self.options.enable12bit
         if self.settings.compiler == 'Visual Studio':
             cmake.definitions['WITH_CRT_DLL'] = 'MD' in str(self.settings.compiler.runtime)
-        if self.settings.os != 'Windows':
-            cmake.definitions['CMAKE_POSITION_INDEPENDENT_CODE'] = self.options.fPIC
-        cmake.configure(build_folder=self.build_subfolder)
+        cmake.configure(build_folder=self._build_subfolder)
         return cmake
 
-    def build(self):
-        if self.settings.os == 'Windows':
-            self.build_cmake()
-        else:
-            self.build_autotools()
-
-    def build_autotools(self):
-        with tools.chdir(self.source_subfolder):
+    def _configure_autotools(self):
+        if not self._autotools:
             self.run('autoreconf -fiv')
-            env_build = AutoToolsBuildEnvironment(self)
-            env_build.fpic = self.options.fPIC
-            args = ['--prefix=%s' % os.path.abspath(self.package_folder)]
+            self._autotools = AutoToolsBuildEnvironment(self)
+            args = []
             if self.options.shared:
                 args.extend(['--disable-static', '--enable-shared'])
             else:
@@ -122,19 +102,34 @@ class MozJpegConan(ConanFile):
             args.append('--with-turbojpeg' if self.options.turbojpeg else '--without-turbojpeg')
             args.append('--with-java' if self.options.java else '--without-java')
             args.append('--with-12bit' if self.options.enable12bit else '--without-12bit')
-            env_build.configure(args=args)
-            env_build.make()
-            env_build.make(args=['install'])
+            self._autotools.configure(args=args)
+        return self._autotools
 
-    def build_cmake(self):
-        cmake = self.configure_cmake()
-        cmake.build()
+    def build(self):
+        tools.patch(base_path=self._source_subfolder, patch_file="mozjpeg.patch")
+        if self.settings.os == 'Windows':
+            cmake = self._configure_cmake()
+            cmake.build()
+        else:
+            with tools.chdir(self._source_subfolder):
+                autotools = self._configure_autotools()
+                autotools.make()
 
     def package(self):
-        self.copy(pattern="LICENSE", dst="licenses", src=self.source_subfolder)
+        self.copy(pattern="LICENSE.md", dst="licenses", src=self._source_subfolder)
         if self.settings.os == 'Windows':
-            cmake = self.configure_cmake()
+            cmake = self._configure_cmake()
             cmake.install()
+        else:
+            with tools.chdir(self._source_subfolder):
+                autotools = self._configure_autotools()
+                autotools.install()
+        share_dir = os.path.join(self.package_folder, "share")
+        if os.path.exists(share_dir):
+            tools.rmdir(share_dir)
 
     def package_info(self):
         self.cpp_info.libs = tools.collect_libs(self)
+        if self.settings.os == "Linux":
+            self.cpp_info.libs.append("m")
+        self.env_info.PATH.append(os.path.join(self.package_folder, "bin"))
