@@ -56,7 +56,7 @@ class MozJpegConan(ConanFile):
 
     def build_requirements(self):
         if not tools.which("nasm"):
-            self.build_requires("nasm_installer/2.13.02@bincrafters/stable")
+            self.build_requires("nasm/2.13.02")
 
     def source(self):
         sha256 = "aebbea60ea038a84a2d1ed3de38fdbca34027e2e54ee2b7d08a97578be72599d"
