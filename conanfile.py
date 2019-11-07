@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import os
 from conans import ConanFile, CMake, tools, AutoToolsBuildEnvironment
 
@@ -10,7 +8,6 @@ class MozJpegConan(ConanFile):
     description = "MozJPEG is an improved JPEG encoder"
     url = "https://github.com/bincrafters/conan-mozjpeg"
     homepage = "https://github.com/mozilla/mozjpeg"
-    author = "Bincrafters <bincrafters@gmail.com>"
     topics = ("conan", "mozjpeg", "jpeg", "jpeg-encoder", "compressor")
     license = ("BSD", "BSD-3-Clause", "ZLIB")
     exports = "LICENSE.md"
@@ -49,6 +46,7 @@ class MozJpegConan(ConanFile):
 
     def configure(self):
         del self.settings.compiler.libcxx
+        del self.settings.compiler.cppstd
 
     def config_options(self):
         if self.settings.os == 'Windows':
